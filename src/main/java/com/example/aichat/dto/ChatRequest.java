@@ -8,11 +8,11 @@ public class ChatRequest {
     @Size(max = 100)
     private String conversationId;
 
-    @Size(max = 2000)
+    @Size(max = 10000)
     private String prompt;
 
     @NotBlank(message = "q is required")
-    @Size(max = 10000, message = "q must be at most 10000 characters")
+    @Size(max = 50000, message = "q must be at most 50000 characters")
     private String q;
 
     public ChatRequest() {}
