@@ -1,0 +1,62 @@
+chat:
+  memory:
+    ttl: 4h
+
+spring:
+  ai:
+    openai:
+      base-url: https://integrate.api.nvidia.com
+      api-key: ${NVIDIA_API_KEY}
+      connect-timeout: 30s
+      read-timeout: 60s
+      chat:
+        options:
+          model: meta/llama-3.2-3b-instruct
+          temperature: 0.7
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+      connect-timeout: 2s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+
+server:
+  port: 8080
+  tomcat:
+    connection-timeout: 5s
+    max-threads: 200
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    com.example: INFO
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiChat:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+  retry:
+    instances:
+      aiChat:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2

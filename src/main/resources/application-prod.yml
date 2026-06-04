@@ -1,0 +1,14 @@
+spring:
+  ai:
+    openai:
+      connect-timeout: 10s
+      read-timeout: 30s
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    com.example: WARN
