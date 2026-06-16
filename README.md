@@ -57,15 +57,29 @@ Il servizio parte su `http://localhost:8080`.
 
 ## API
 
-### `POST /api/chat`
-
-**Request:**
+### Request (valida per entrambi gli endpoint)
 
 | Campo           | Tipo   | Obbligatorio | Descrizione                              |
 |-----------------|--------|-------------|------------------------------------------|
 | `conversationId`| string | no          | ID conversazione (max 100 caratteri)     |
 | `prompt`        | string | no          | System prompt (max 2000 caratteri)       |
 | `q`             | string | sì          | Domanda / messaggio utente (max 10000 caratteri) |
+
+**Response (400 — validation error, entrambi gli endpoint):**
+```json
+{
+  "status": 400,
+  "error": "Validation Error",
+  "message": "q: q is required",
+  "timestamp": "2026-06-04T21:00:00.000Z"
+}
+```
+
+---
+
+### `POST /api/chat` — Blocking
+
+Risposta JSON completa, arriva tutta insieme dopo ~60-90s (attesa NVIDIA API).
 
 **Response (200):**
 ```json
@@ -77,48 +91,56 @@ Il servizio parte su `http://localhost:8080`.
 }
 ```
 
-**Response (400 — validation error):**
-```json
-{
-  "status": 400,
-  "error": "Validation Error",
-  "message": "q: q is required",
-  "timestamp": "2026-06-04T21:00:00.000Z"
-}
-```
-
-**Esempi curl:**
-
+**Curl:**
 ```bash
 # Chat semplice
-curl -s -X POST http://localhost:8080/api/chat \
+curl -s --max-time 120 -X POST http://localhost:8080/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"conversationId":"conv-1","prompt":"Sei un assistente italiano","q":"Ciao, chi sei?"}'
+  -d '{"q":"Ciao, chi sei?"}'
 
-# Senza conversationId (chat senza memoria)
-curl -s -X POST http://localhost:8080/api/chat \
+# Con memoria
+curl -s --max-time 120 -X POST http://localhost:8080/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"q":"Ciao, come stai?"}'
+  -d '{"conversationId":"test-1","prompt":"Sei un assistente italiano","q":"Ciao, chi sei?"}'
 
-# Senza system prompt
+# Errore validazione
 curl -s -X POST http://localhost:8080/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"conversationId":"conv-2","q":"Che ore sono?"}'
+  -d '{"conversationId":"x"}'
+```
 
-# Conversazione con memoria (stessa conversationId)
-curl -s -X POST http://localhost:8080/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"conversationId":"history-1","prompt":"Sei un assistente","q":"Ricorda che mi chiamo Marco"}'
+---
 
-curl -s -X POST http://localhost:8080/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"conversationId":"history-1","q":"Come mi chiamo?"}'
-# → Risponde "Marco"
+### `POST /api/chat/stream` — Streaming SSE
 
-# Errori (400)
-curl -s -X POST http://localhost:8080/api/chat \
+Risposta in tempo reale via Server-Sent Events (`text/event-stream`). Ogni `data:` è un token/delta del modello.
+
+**Response (200):**
+```
+data:Mi
+data: chiamo
+data: ...
+data:Llama
+```
+
+Il client riceve ogni token non appena generato.
+
+**Curl:**
+```bash
+# Chat in streaming (usa -N per vedere i token in tempo reale)
+curl -s -N --max-time 120 -X POST http://localhost:8080/api/chat/stream \
   -H "Content-Type: application/json" \
-  -d '{"conversationId":"x"}'                   # → 400 (manca q)
+  -d '{"q":"Ciao, chi sei?"}'
+
+# Con memoria
+curl -s -N --max-time 120 -X POST http://localhost:8080/api/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{"conversationId":"test-1","prompt":"Sei un assistente italiano","q":"Ciao, chi sei?"}'
+```
+
+**Errore validazione (400):** anche in streaming, se la request non è valida la risposta è JSON (non SSE):
+```json
+{"status":400,"error":"Validation Error","message":"q: q is required","timestamp":"..."}
 ```
 
 ## Health Check & Metrics

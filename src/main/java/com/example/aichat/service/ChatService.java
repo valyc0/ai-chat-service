@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import com.example.aichat.dto.ChatRequest;
 import com.example.aichat.dto.ChatResponse;
 
+import reactor.core.publisher.Flux;
+
 @Service
 public class ChatService {
 
@@ -53,6 +55,34 @@ public class ChatService {
         } finally {
             MDC.clear();
         }
+    }
+
+    public Flux<String> streamRequest(ChatRequest request) {
+        String convId = sanitize(request.getConversationId());
+
+        MDC.put("conversationId", convId != null ? convId : "none");
+        if (request.getQ() != null) {
+            MDC.put("queryLength", String.valueOf(request.getQ().length()));
+        }
+
+        log.info("Processing streaming chat request");
+
+        var spec = chatClient.prompt().user(request.getQ());
+        if (request.getPrompt() != null && !request.getPrompt().isBlank()) {
+            spec = spec.system(request.getPrompt());
+        }
+        if (convId != null && !convId.isBlank()) {
+            spec = spec.advisors(a -> a.param("chat_memory_conversation_id", convId));
+        }
+
+        Flux<String> stream = aiClient.stream(spec);
+
+        return stream
+                .doFinally(signalType -> {
+                    MDC.remove("conversationId");
+                    MDC.remove("queryLength");
+                    log.info("Streaming chat request completed");
+                });
     }
 
     private static String sanitize(String conversationId) {

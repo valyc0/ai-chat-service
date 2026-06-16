@@ -5,13 +5,13 @@ chat:
 spring:
   ai:
     openai:
-      base-url: https://integrate.api.nvidia.com
-      api-key: ${NVIDIA_API_KEY}
+      base-url: https://openrouter.ai/api
+      api-key: ${OPENROUTER_API_KEY}
       connect-timeout: 30s
-      read-timeout: 60s
+      read-timeout: 120s
       chat:
         options:
-          model: meta/llama-3.2-3b-instruct
+          model: nex-agi/nex-n2-pro:free
           temperature: 0.7
 
   data:
@@ -28,9 +28,6 @@ spring:
 
 server:
   port: 8080
-  tomcat:
-    connection-timeout: 5s
-    max-threads: 200
 
 management:
   endpoints:
@@ -44,6 +41,9 @@ management:
 logging:
   level:
     com.example: INFO
+    org.springframework.ai: DEBUG
+    org.springframework.web.client: DEBUG
+    org.springframework.http: DEBUG
 
 resilience4j:
   circuitbreaker:

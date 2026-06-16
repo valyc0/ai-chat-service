@@ -7,10 +7,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 
+import reactor.core.publisher.Flux;
+
 @Component
 public class AiClient {
 
     private static final Logger log = LoggerFactory.getLogger(AiClient.class);
+
+    private static final String FALLBACK_MSG = "The AI service is currently unavailable. Please try again later.";
 
     @Retry(name = "aiChat")
     @CircuitBreaker(name = "aiChat", fallbackMethod = "fallback")
@@ -24,6 +28,17 @@ public class AiClient {
 
     public String fallback(ChatClient.ChatClientRequestSpec spec, Throwable t) {
         log.error("AI call failed after retries", t);
-        return "The AI service is currently unavailable. Please try again later.";
+        return FALLBACK_MSG;
+    }
+
+    @Retry(name = "aiChat")
+    public Flux<String> stream(ChatClient.ChatClientRequestSpec spec) {
+        return spec.stream()
+                .content()
+                .filter(token -> !token.isEmpty())
+                .onErrorResume(e -> {
+                    log.error("AI stream error", e);
+                    return Flux.just(FALLBACK_MSG);
+                });
     }
 }
